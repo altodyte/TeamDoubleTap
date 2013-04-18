@@ -1,9 +1,9 @@
 // Setup Variables
-const int trigger = HIGH;
+const int trigger = HIGH; // unused
 // Sets Node Pin #'s
 const int nodes[] = {1,2,3,4};
 // record processing variables
-int reading[4] = {0,0,0,0}; // storage for values recorded by digital pins
+boolean reading[4] = {0,0,0,0}; // storage for values recorded by digital pins
 int time[4] = {0,0,0,0}; // storage for times of triggers
 int flag[4] = {0,0,0,0}; // storage for trigger state indicator
 int first = 0; // storage for seed node number (first triggered in cycle)
@@ -36,7 +36,7 @@ void loop() {
 
 // Checks if a node has triggered this cycle
 void read_node(int num) {
-  if ((reading[num] = HIGH)&&(flag[num]==0)) {
+  if ((reading[num] == HIGH)&&(flag[num]==0)) {
     time[num] = micros(); // records time of trigger
     flag[num] = 1; // indicates that this node has triggered
     if (first==0) {
