@@ -77,7 +77,7 @@ void calibrate() {
   int caltimes[4][4]; // Creates a 4x4 array to store calibration data (times)
   int equalized_times[4][4]; // Storage for equalized times (with respect to seed time)
   for (int i=0; i<4; i++) {
-    Serial.println("Please tap node "); // figure out how to stringify ints "tap node i"
+    Serial.println("Please tap node "); // figure out how to stringify ints "tap node i" ??
     while ((flag[0]==0)||(flag[1]==0)) { // ||(flag[2]==0)||(flag[3]==0)
       read_and_check_all();
     }
