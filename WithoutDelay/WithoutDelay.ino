@@ -1,7 +1,6 @@
 // Setup Variables
-const int trigger = HIGH; // unused
 // Sets Node Pin #'s
-const int nodes[] = {2,4,7,8};
+const int nodes[] = {2,4,7,8}; // pin numbers of input from nodes
 // record processing variables
 boolean reading[4] = {0,0,0,0}; // storage for values recorded by digital pins
 int time[4] = {0,0,0,0}; // storage for times of triggers
@@ -9,14 +8,17 @@ int flag[4] = {0,0,0,0}; // storage for trigger state indicator
 int first = -1; // storage for seed node number (first triggered in cycle)
 // triangulation variables
 int pixel = 100; // number of pixels across width
+float speeds[4] = {0,0,0,0}; // storage for average speeds discovered through calibration
 
 void setup() {
   // Initializes communication with the Serial at 9600 bits/second
   Serial.begin(9600);
+  delay(2000);
   // Turns on digital pins for input
   for (int i=0; i<4; i++) {
     pinMode(nodes[i], INPUT);
   }
+  calibrate();
 }
 
 void loop() {
@@ -34,9 +36,6 @@ void read_and_check_all() {
   for (int i=0; i<4; i++) {
     reading[i] = digitalRead(nodes[i]);
   }
-  // TAKE OUT WHEN USING ALL NODES
-  reading[2] = LOW;
-  reading[3] = LOW;
   // Checks if any new nodes have exceeded trigger voltage
   for (int i=0; i<4; i++) {
     read_node(i);
@@ -55,25 +54,55 @@ void read_node(int num) {
 }
 
 void process() {
-  // More detailed signal processing required for more nodes
-  if (first==0) {
-    Serial.println("Node 0");
+  // More Detailed Processing:
+  int delta_times[4] = {0,0,0,0};
+  int pixel_distance[4] = {0,0,0,0};
+  for (int i=0; i<4; i++) {
+    delta_times[i] = time[i] - time[first];
+    pixel_distance[i] = delta_times[i]*speeds[i];
   }
-  if (first==1) {
-    Serial.println("Node 1");
+  float minimum[3] = {pixel*sqrt(2), 0, 0}; // {Minimum Value, X_Coord, Y_Coord}
+  int center_x[4] = {0, pixel, pixel, 0}; // X-Coordinates of Nodes
+  int center_y[4] = {0, 0, pixel, pixel}; // Y-Coordinates of Nodes
+  for (int x=0; x<pixel+1; x++) { // x-coordinate of guess
+    for (int y=0; y<pixel+1; y++) { // y-coordinate of guess
+      float point_guess[4] = {0,0,0,0}; // Storage for distances from each node
+      float point_min = 0; // Storage for average of point_guess
+      for (int r=0; r<4; r++) { // radius (index of pixel_distance[4])
+        if (pixel_distance[r]!=0) { // ignores zero radius (seed or first node triggered)
+          point_guess[r] = distance(x,y,center_x[r],center_y[r]);
+        }
+      }
+      // Averages point_guess into point_min
+      for (int i=0; i<4; i++) {
+        point_min = point_min + point_guess[i]/3;
+      }
+      // compares to existing minimum and replaces if smaller
+      if (point_min < minimum[0]) {
+        minimum[0] = point_min;
+        minimum[1] = x;
+        minimum[2] = y;
+      }
+    }
   }
   // Reset Flag Values (to untriggered)
   for (int i=0; i<4; i++) {
     flag[i] = 0; // resets all the flags
   }
   first = -1; // resets the first seed
+  char a = minimum[1];
+  char b = minimum[2];
+  Serial.println("X-Coordinate of Tap:");
+  Serial.println(minimum[1]);
+  Serial.println("Y-Coordinate of Tap:");
+  Serial.println(minimum[2]);
 }
 
 void calibrate() {
-  int calibrate[4][3]; // Creates a 4x3 array to store calibration data (speeds)
+  float calibrate[4][3]; // Creates a 4x3 array to store calibration data (speeds)
   int cal_index[4][3] = {{1,2,3},{0,2,3},{0,1,3},{0,1,2}}; // keeps track of first index of calibrate to write to
   int cal_counter[4]; // keeps track of second index of calibrate to write to
-  int cal_distance[4][3] = {{1,sqrt(2),1},{1,1,sqrt(2)},{sqrt(2),1,1},{1,sqrt(2),1}}; 
+  float cal_distance[4][3] = {{1,sqrt(2),1},{1,1,sqrt(2)},{sqrt(2),1,1},{1,sqrt(2),1}}; 
   int caltimes[4][4]; // Creates a 4x4 array to store calibration data (times) ; raw measurements
   int equalized_times[4][4]; // Storage for equalized times (with respect to seed time) ; delta T's
   for (int i=0; i<4; i++) {
@@ -95,11 +124,16 @@ void calibrate() {
   }
   for (int x=0; x<4; x++) {
     for (int i=0; i<3; i++) {
-      int dist = cal_distance[cal_index[x][i]][cal_counter[cal_index[x][i]]]*pixel;
+      float dist = cal_distance[cal_index[x][i]][cal_counter[cal_index[x][i]]]*pixel;
       int t = equalized_times[x][cal_index[x][i]];
-      int val = dist/t; // might have to be a float
-      calibrate[cal_index[x][i]][cal_counter[cal_index[x][i]]];
+      float val = dist/t;
+      calibrate[cal_index[x][i]][cal_counter[cal_index[x][i]]] = val;
       cal_counter[cal_index[x][i]]++;
+    }
+  }
+  for (int i=0; i<4; i++) {
+    for (int j=0; j<3; j++) {
+      speeds[i] = speeds[i] + (calibrate[i][j]/3); // averages calibration speeds
     }
   }
   // Reset Flag Values (to untriggered)
@@ -107,4 +141,8 @@ void calibrate() {
     flag[i] = 0; // resets all the flags
   }
   first = -1;
+}
+
+float distance(int x1, int y1, int x2, int y2) {
+  return sqrt((x1-x2)^2 + (y1-y2)^2);
 }
