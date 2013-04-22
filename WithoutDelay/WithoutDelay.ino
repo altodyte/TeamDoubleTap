@@ -74,8 +74,8 @@ void calibrate() {
   int cal_index[4][3] = {{1,2,3},{0,2,3},{0,1,3},{0,1,2}}; // keeps track of first index of calibrate to write to
   int cal_counter[4]; // keeps track of second index of calibrate to write to
   int cal_distance[4][3] = {{1,sqrt(2),1},{1,1,sqrt(2)},{sqrt(2),1,1},{1,sqrt(2),1}}; 
-  int caltimes[4][4]; // Creates a 4x4 array to store calibration data (times)
-  int equalized_times[4][4]; // Storage for equalized times (with respect to seed time)
+  int caltimes[4][4]; // Creates a 4x4 array to store calibration data (times) ; raw measurements
+  int equalized_times[4][4]; // Storage for equalized times (with respect to seed time) ; delta T's
   for (int i=0; i<4; i++) {
     char c = i;
     String out = "Please tap node "+c;
