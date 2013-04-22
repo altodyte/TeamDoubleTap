@@ -24,7 +24,7 @@ void loop() {
   // Check if any new nodes have exceeded trigger voltage
   read_and_check_all();
   // Enters signal processing if all nodes have reached trigger (sensed a tap)
-  if ((flag[0]==1)&&(flag[1]==1)) {
+  if ((flag[0]==1)&&(flag[1]==1)) { // &&(flag[2]==3)&&(flag[3]==1)
     process();
   }
 }
@@ -77,11 +77,15 @@ void calibrate() {
   int caltimes[4][4]; // Creates a 4x4 array to store calibration data (times)
   int equalized_times[4][4]; // Storage for equalized times (with respect to seed time)
   for (int i=0; i<4; i++) {
-    Serial.println("Please tap node "); // figure out how to stringify ints "tap node i"
+    char c = i;
+    String out = "Please tap node "+c;
+    Serial.println(out);
     while ((flag[0]==0)||(flag[1]==0)) { // ||(flag[2]==0)||(flag[3]==0)
       read_and_check_all();
     }
-    caltimes[i] = time;
+    for (int j=0; j<4; j++) {
+      caltimes[i][j] = time[j];
+    }
     // need to reset flags, first
   }
   for (int i=0; i<4; i++) {
@@ -98,6 +102,9 @@ void calibrate() {
       cal_counter[cal_index[x][i]]++;
     }
   }
-  // need to reset flags, init. vals.
+  // Reset Flag Values (to untriggered)
+  for (int i=0; i<4; i++) {
+    flag[i] = 0; // resets all the flags
+  }
   first = -1;
 }
