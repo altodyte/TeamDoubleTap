@@ -3,7 +3,7 @@
 const int nodes[] = {2,4,7,8}; // pin numbers of input from nodes
 // record processing variables
 boolean reading[4] = {0,0,0,0}; // storage for values recorded by digital pins
-int time[4] = {0,0,0,0}; // storage for times of triggers
+unsigned long int time[4] = {0,0,0,0}; // storage for times of triggers
 int flag[4] = {0,0,0,0}; // storage for trigger state indicator
 int first = -1; // storage for seed node number (first triggered in cycle)
 // triangulation variables
@@ -19,14 +19,16 @@ void setup() {
     pinMode(nodes[i], INPUT);
   }
   calibrate();
+  Serial.println("Calibration is complete.");
 }
 
 void loop() {
   // Read values of digital pins
   // Check if any new nodes have exceeded trigger voltage
   read_and_check_all();
+  delay(500); // ****************************
   // Enters signal processing if all nodes have reached trigger (sensed a tap)
-  if ((flag[0]==1)&&(flag[1]==1)) { // &&(flag[2]==3)&&(flag[3]==1)
+  if ((flag[0]==1)&&(flag[1]==1)&&(flag[2]==3)&&(flag[3]==1)) {
     process();
   }
 }
@@ -70,7 +72,7 @@ void process() {
       float point_min = 0; // Storage for average of point_guess
       for (int r=0; r<4; r++) { // radius (index of pixel_distance[4])
         if (pixel_distance[r]!=0) { // ignores zero radius (seed or first node triggered)
-          point_guess[r] = distance(x,y,center_x[r],center_y[r]);
+          point_guess[r] = abs(pixel_distance[r] - distance(x,y,center_x[r],center_y[r]));
         }
       }
       // Averages point_guess into point_min
@@ -107,11 +109,12 @@ void calibrate() {
   int equalized_times[4][4]; // Storage for equalized times (with respect to seed time) ; delta T's
   for (int i=0; i<4; i++) {
     char c = i;
-    String out = "Please tap node "+c;
+    String out = "Please tap node ";
     Serial.println(out);
-    while ((flag[0]==0)||(flag[1]==0)) { // ||(flag[2]==0)||(flag[3]==0)
+    while ((flag[0]==0)||(flag[1]==0)||(flag[2]==0)||(flag[3]==0)) {
       read_and_check_all();
     }
+    delay(1000); // ****************************************
     for (int j=0; j<4; j++) {
       caltimes[i][j] = time[j];
     }
@@ -127,6 +130,7 @@ void calibrate() {
       float dist = cal_distance[cal_index[x][i]][cal_counter[cal_index[x][i]]]*pixel;
       int t = equalized_times[x][cal_index[x][i]];
       float val = dist/t;
+      Serial.println(val);
       calibrate[cal_index[x][i]][cal_counter[cal_index[x][i]]] = val;
       cal_counter[cal_index[x][i]]++;
     }
@@ -141,6 +145,9 @@ void calibrate() {
     flag[i] = 0; // resets all the flags
   }
   first = -1;
+  for (int i=0; i<4; i++) {
+    Serial.println(speeds[i]);
+  }
 }
 
 float distance(int x1, int y1, int x2, int y2) {
