@@ -1,5 +1,4 @@
-int pertap = 1; // raw high/lows = 0; delta_times = 1; triangulate = 2;
-
+int pertap = 2; // raw high/lows = 0; delta_times = 1; triangulate = 2
 int nodes[4] = {2,4,7,8}; // Node pin numbers
 int readings[4]; // Storage for digital reads from nodes
 unsigned long times[4]; // Storage for triggered times
@@ -8,7 +7,9 @@ int flags[4] = {0, 0, 0, 0}; // Storage for triggered indicators
 int first = -1; // Storage for first triggered node #
 float speeds[4]; // storage for calibrated speeds
 int pixel = 100; // number of pixels along an edge of the surface
- 
+int stillclose;
+int winner;
+
 void setup() {
   Serial.begin(9600); // Initializes communication with the serial port
   delay(1500);
@@ -16,7 +17,7 @@ void setup() {
     pinMode(nodes[i], INPUT); // Sets each node to input
   }
   //calibrate();
-  Serial.println("Calibration Complete");
+  //Serial.println("Calibration Complete");
   //float old_speeds[4] = {0.00233059, 0.00224623, 0.00250228, 0.00419676};
   float old_speeds[4] = {0.0023, 0.0023, 0.0023, 0.0023};
   for (int i=0; i<4; i++) {
@@ -24,7 +25,6 @@ void setup() {
   }
   Serial.println("Fake Calibration Complete!");
 }
- 
 void loop() {
   if (pertap == 2) {
     read_and_check_all();
@@ -39,7 +39,7 @@ void loop() {
     }
   }
 }
-
+ 
 // Reads all the nodes and gets times if a trigger is crossed
 void read_and_check_all() {
   for (int i=0; i<4; i++) {
@@ -55,7 +55,7 @@ void read_and_check_all() {
     }
   }
 }
-
+ 
 // Calculates Delta Times, Prints, and Resets Flags
 void equalize_and_reset() {
   // only runs if ALL FLAGS HAVE BEEN THROWN
@@ -64,24 +64,27 @@ void equalize_and_reset() {
       eqtimes[n] = times[n]-times[first]; // calculates delta times
       Serial.print(n);
       Serial.print(" ");
-      Serial.print(eqtimes[n]);
-      Serial.print(" ");
-      Serial.print(times[n]);
-      Serial.print(" ");
-      Serial.println(times[first]);
+      Serial.println(eqtimes[n]);
+      //Serial.print(" ");
+      //Serial.print(times[n]);
+      //Serial.print(" ");
+      //Serial.println(times[first]);
     }
     for (int i=0; i<4; i++) {
       flags[i] = 0; // resets all the node flags
     }
-    first = -1; // resets the first flag
     Serial.println();
     if (pertap==2) {
-      triangulate();
-    }   
+      winner = triangulate();
+      Serial.println();
+      Serial.println("the winner is...");
+      Serial.println(winner);
+    }  
+    first = -1; // resets the first flag
     delay(1000); // delays to prevent reverberation pickup
   }
 }
-
+ 
 void eq_and_re() {
   if (flags[0] == 1 && flags[1] == 1 && flags[2] == 1 && flags[3] == 1){
     for (int n=0; n<4; n++){
@@ -95,22 +98,24 @@ void eq_and_re() {
     for (int i=0; i<4; i++) {
       flags[i] = 0; // resets all the node flags
     }
-    first = -1; // resets the first flag
-    Serial.println();
     if (pertap==2) {
-      triangulate();
-    }   
+      winner = triangulate();
+      Serial.println();
+      Serial.println("the winner is...");
+      Serial.println(winner);
+    }  
+    first = -1; // resets the first flag
     delay(1000); // delays to prevent reverberation pickup
   }
 }
-  
+ 
 void calibrate() {
   int OLD_PERTAP = pertap;
   pertap = 1;
   float calibrate[4][3]; // Creates a 4x3 array to store calibration data (speeds)
   int cal_index[4][3] = {{1,2,3},{0,2,3},{0,1,3},{0,1,2}}; // keeps track of first index of calibrate to write to
   int cal_counter[4] = {0,0,0,0}; // keeps track of second index of calibrate to write to
-  float cal_distance[4][3] = {{1,sqrt(2),1},{1,1,sqrt(2)},{sqrt(2),1,1},{1,sqrt(2),1}}; 
+  float cal_distance[4][3] = {{1,sqrt(2),1},{1,1,sqrt(2)},{sqrt(2),1,1},{1,sqrt(2),1}};
   int calibration_times[4][4]; // is equivalent here to equalized_times[4][4] in WithoutDelay
   int successful_tap[4] = {0,0,0,0};
   for (int a; a<4; a++) {
@@ -191,7 +196,7 @@ void calibrate() {
   Serial.println(speeds[3],8);
   pertap = OLD_PERTAP;
 }
-
+ 
 char num_to_char(int input) {
   if (input == 1) {
     return '1';
@@ -205,50 +210,94 @@ char num_to_char(int input) {
     return '#';
   }
 }
-
-void triangulate() {
-  // More Detailed Processing:
+ 
+int triangulate() {
+  //Given eqtimes, figure out which square tap was in
+  Serial.print(first);
   int node_distance[4] = {0,0,0,0};
   for (int i=0; i<4; i++) {
     node_distance[i] = eqtimes[i]*speeds[i];
   }
-  float minimum[3] = {pixel*sqrt(2), -1, -1}; // {Minimum Value, X_Coord, Y_Coord}
-  int center_x[4] = {0, 0, pixel, pixel}; // X-Coordinates of Nodes
-  int center_y[4] = {0, pixel, pixel, 0}; // Y-Coordinates of Nodes
-  for (int x=0; x<pixel+1; x++) { // x-coordinate of guess
-    for (int y=0; y<pixel+1; y++) { // y-coordinate of guess
-      float point_guess[4] = {0,0,0,0}; // Storage for distances from each curve
-      float point_min = 0; // Storage for average of point_guess
-      for (int r=0; r<4; r++) { // radius (index of node_distance[4])
-        if (node_distance[r]!=0) { // ignores zero radius (seed or first node triggered)
-          point_guess[r] = abs(node_distance[r] - distance(x,y,center_x[r],center_y[r]));
+  stillclose = 0;
+  for (int p = 0; p<4; p++){
+    for (int q = 0; q<4; q++){
+      if (eqtimes[p] > eqtimes[q] + 550) {
+          stillclose = 1;
         }
       }
-      // Averages point_guess into point_min
-      for (int i=0; i<4; i++) {
-        point_min = point_min + point_guess[i]/3;
+    }
+  if (stillclose == 0){
+    return 5;
+  }
+  
+  if ((eqtimes[0] < 250) && (eqtimes[1] < 1000) && (eqtimes[2] < 250) && (eqtimes[3] < 250)) {
+   return 5;
+  } 
+
+ 
+  if (first == 0){
+    if (eqtimes[1] < 700){
+        return 4;
+    }
+    else{
+      if (eqtimes[3] < 500){
+        return 8;
       }
-      // compares to existing minimum and replaces if smaller
-      if (point_min < minimum[0]) {
-        minimum[0] = point_min;
-        minimum[1] = x;
-        minimum[2] = y;
+      else{
+        return 7;
       }
     }
   }
-  // Reset Flag Values (to untriggered)
-  for (int i=0; i<4; i++) {
-    flags[i] = 0; // resets all the flags
+ 
+  if (first == 1){
+    if (eqtimes[2] < 350){
+      if (eqtimes[0] < 350){
+        return 1;
+      }
+        return 2;
+    }
+    else{
+      if (eqtimes[0] < 350){
+        return 4;
+      }
+      else{
+        return 1;
+      }
+    }
   }
-  first = -1; // resets the first seed
-  Serial.print("Point_Min ");
-  Serial.println(minimum[0]);
-  Serial.print("X-Coordinate of Tap: ");
-  Serial.println(minimum[1]);
-  Serial.print("Y-Coordinate of Tap: ");
-  Serial.println(minimum[2]);
-  Serial.println("");
-}
-float distance(int x1, int y1, int x2, int y2) {
-  return sqrt((x1-x2)^2 + (y1-y2)^2);
+ 
+  if (first == 2){
+    if ((eqtimes[3] > 900) && (eqtimes[0] < 300) && (eqtimes[1] < 300)){
+      return 1;
+    }
+    if (eqtimes[3] < 500){
+        return 6;
+    }
+    else{
+      if (eqtimes[1] < 850){
+        return 2;
+      }
+      else{
+        return 3;
+      }
+    }
+  }
+ 
+  if (first == 3){
+    if (eqtimes[2] < 500){
+        return 6;
+      }
+    else{
+      if (eqtimes[0] < 550){
+        return 8;
+      }
+      if ((eqtimes[3] > 1100) && (eqtimes[2] > 1100) && (eqtimes[1] > 1100)){
+        return 8;
+      }
+      else{
+        return 9;
+      }
+    }
+  }
+  return 100;
 }
