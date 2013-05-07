@@ -4,10 +4,12 @@ const int nodes[] = {2, 4, 7, 8}; // pin numbers of input from nodes
 int flag[] = {0, 0, 0, 0};
 int reading[] = {LOW, LOW, LOW, LOW};
 int first = -1;
+int second = -1;
+int third = -1;
+int fourth = -1;
 
 unsigned long readtimes[] = {0, 0, 0, 0};
 unsigned long tapButton[4];
-
 unsigned long calib_Button[4];
 
 
@@ -33,8 +35,10 @@ void calibrateButtons() {
   for (int i=0; i<4; i++){
     Serial.println(calib_Button[i]);
   }
+
   delay(500);
 }
+
 
 void captureData() {
   while ((flag[0] == 0) || (flag[1] == 0) || (flag[2] == 0) || (flag[3] == 0)) {
@@ -52,6 +56,15 @@ void captureData() {
       if (first == -1) {
         first = 0;
       }
+//      else if (second == -1) {
+//        second = 0;
+//      }
+//      else if (third == -1) {
+//        third = 0;
+//      }
+//      else if (fourth == -1) {
+//        fourth = 0;    
+//      }
     }
     
     if ((flag[1] == 0) && (reading[1] == HIGH)) {  
@@ -60,6 +73,15 @@ void captureData() {
       if (first == -1) {
         first = 1;
       }
+//      else if (second == -1) {
+//        second = 1;
+//      }
+//      else if (third == -1) {
+//        third = 1;
+//      }
+//      else if (fourth == -1) {
+//        fourth = 1;
+//      }
     }
     
     if ((flag[2] == 0) && (reading[2] == HIGH)) {  
@@ -67,7 +89,16 @@ void captureData() {
       tapButton[2] = readtimes[2];
       if (first == -1) {
         first = 2;
-      }  
+      }
+//      else if (second == -1) {
+//        second = 2;
+//      }
+//      else if (third == -1) {
+//        third = 2;
+//      }
+//      else if (fourth == -1) {
+//        fourth = 2;
+//      }
     }
     
     if ((flag[3] == 0) && (reading[3] == HIGH)) {  
@@ -76,16 +107,30 @@ void captureData() {
       if (first == -1) {
         first = 3;
       }
+//      else if (second == -1) {
+//        second = 3;
+//      }
+//      else if (third == -1) {
+//        third = 3;
+//      }
+//      else if (fourth == -1) {
+//        fourth = 3;
+//      }
     }
   }
 
   
   Serial.println(first);
-  
+  Serial.println(second);  
+  Serial.println(third);
+  Serial.println(fourth);  
   for (int i=0; i<4; i++) {
     calib_Button[i] = tapButton[i] - readtimes[first];
     flag[i] = 0;
     tapButton[i] = 0;
   }
   first = -1;
+  second = -1;
+  third = -1;
+  fourth = -1;
 }  
